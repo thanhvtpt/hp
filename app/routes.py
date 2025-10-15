@@ -1,14 +1,9 @@
-from flask import render_template, request, redirect, url_for, send_file, flash
-from app import app
-import os
-from flask import render_template, request, redirect, url_for, send_file, flash
+from flask import render_template, request, redirect, url_for, send_file
 from app import app
 import os
 import pandas as pd
 from PIL import Image, ImageDraw, ImageFont
 import zipfile
-import datetime
-
 
 @app.route('/home', methods=['GET'])
 def index():
@@ -61,6 +56,7 @@ def generate_certificates():
                     continue
             return ImageFont.load_default()
 
+        # --- Vẽ từng học sinh ---
         for idx, row in df.iterrows():
             image = Image.open(template_path)
             image = image.convert('RGB') if ext in ['.jpg', '.jpeg'] else image.convert('RGBA')
@@ -125,8 +121,24 @@ def generate_certificates():
 
             # --- Lưu ảnh ---
             result_filename = f"result_{idx+1}_{template_image.filename}"
+            result_path = os.path.join(output_dir, result_filename)
+            image.save(result_path)
+            result_files.append(result_path)
 
-# Route tải file ZIP
+        # --- Nén ZIP ---
+        zip_filename = 'certificates.zip'
+        zip_path = os.path.join(output_dir, zip_filename)
+        with zipfile.ZipFile(zip_path, 'w') as zipf:
+            for file in result_files:
+                zipf.write(file, os.path.basename(file))
+
+        # --- Trả link tải ---
+        return redirect(url_for('download_file', filename=zip_filename))
+
+    except Exception as e:
+        return f"Lỗi xử lý file: {e}"
+
+
 @app.route('/download/<filename>')
 def download_file(filename):
     output_dir = os.path.join(os.getcwd(), 'output')
